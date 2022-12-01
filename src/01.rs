@@ -1,5 +1,6 @@
 fn main() {
     part1();
+    part2();
 }
 
 fn part1() {
@@ -22,7 +23,31 @@ fn part1() {
         max = sum;
     }
 
-    println!("Maximum is {max}");
+    println!("Part1 is {max}");
+}
+
+fn part2() {
+    let lines = input().trim().lines().map(|line| line.trim());
+
+    let mut sum: u32 = 0;
+    let mut max = [0, 0, 0];
+    for line in lines {
+        if line.is_empty() {
+            if sum > max[0] {
+                max[0] = sum;
+                max.sort();
+            }
+            sum = 0;
+        } else {
+            sum += line.parse::<u32>().unwrap();
+        }
+    }
+
+    if sum > max[0] {
+        max[0] = sum;
+    }
+
+    println!("Part2 is {}", max.iter().sum::<u32>());
 }
 
 fn input() -> &'static str {
