@@ -36,7 +36,32 @@ fn part1(input: &'static str) -> u32 {
 }
 
 fn part2(input: &'static str) -> u32 {
-    0
+    let lines: Vec<&str> = input.trim().lines().map(|line| line.trim()).collect();
+
+    lines
+        .chunks(3)
+        .map(|lines| {
+            let one: HashSet<char> = lines[0].chars().collect();
+            let two: HashSet<char> = lines[1].chars().collect();
+            let three: HashSet<char> = lines[2].chars().collect();
+
+            let intersection_one_two: HashSet<char> = one.intersection(&two).copied().collect();
+            let intersection: Vec<&char> = three.intersection(&intersection_one_two).collect();
+
+            if intersection.len() != 1 {
+                panic!();
+            }
+
+            let char_intersection = intersection.first().unwrap();
+
+            let mut result = char_intersection.to_digit(36).unwrap() - 9;
+            if char_intersection.is_ascii_uppercase() {
+                result += 26;
+            }
+
+            result
+        })
+        .sum()
 }
 
 #[test]
@@ -54,16 +79,19 @@ fn test() {
         "
         )
     );
-    // assert_eq!(
-    //     12,
-    //     part2(
-    //         "
-    //         A Y
-    //         B X
-    //         C Z
-    //     "
-    //     )
-    // );
+    assert_eq!(
+        70,
+        part2(
+            "
+            vJrwpWtwJgWrhcsFMMfFFhFp
+            jqHRNqRjqzjGDLGLrsFMfFZSrLrFZsSL
+            PmmdzqPrVvPwwTWBwg
+            wMqvLMZHhHMvwLHjbvcjnnSBnvTQFn
+            ttgJtRGJQctTZtZT
+            CrZsJsPPZsGzwwsLwLmpwMDw
+        "
+        )
+    );
 }
 
 fn input() -> &'static str {
