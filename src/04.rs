@@ -1,5 +1,6 @@
 fn main() {
     println!("Part1 is {}", part1(input()));
+    println!("Part2 is {}", part2(input()));
 }
 
 fn part1(input: &'static str) -> usize {
@@ -21,11 +22,45 @@ fn part1(input: &'static str) -> usize {
         .count()
 }
 
+fn part2(input: &'static str) -> usize {
+    input
+        .trim()
+        .lines()
+        .filter(|line| {
+            let (a, b) = line.trim().split_once(',').unwrap();
+
+            let (a1, a2) = a.split_once('-').unwrap();
+            let (b1, b2) = b.split_once('-').unwrap();
+
+            let range_a = a1.parse::<u32>().unwrap()..=a2.parse().unwrap();
+            let range_b = b1.parse::<u32>().unwrap()..=b2.parse().unwrap();
+
+            range_b.contains(range_a.start())
+                || range_b.contains(range_a.end())
+                || range_a.contains(range_b.start())
+                || range_a.contains(range_b.end())
+        })
+        .count()
+}
+
 #[test]
 fn test() {
     assert_eq!(
         2,
         part1(
+            "
+    2-4,6-8
+    2-3,4-5
+    5-7,7-9
+    2-8,3-7
+    6-6,4-6
+    2-6,4-8
+    "
+        )
+    );
+    assert_eq!(
+        4,
+        part2(
             "
     2-4,6-8
     2-3,4-5
