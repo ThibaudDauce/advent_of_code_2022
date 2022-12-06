@@ -1,14 +1,15 @@
 use std::collections::HashSet;
 
 fn main() {
-    println!("Part1 {}", part1(input()));
+    println!("Part1 {}", compute(4, input()));
+    println!("Part2 {}", compute(14, input()));
 }
 
-fn part1(input: &'static str) -> usize {
+fn compute(window_size: usize, input: &'static str) -> usize {
     let chars: Vec<char> = input.trim().chars().collect();
     chars
         .as_slice()
-        .windows(4)
+        .windows(window_size)
         .enumerate()
         .filter(|(_, chars)| {
             //
@@ -17,16 +18,22 @@ fn part1(input: &'static str) -> usize {
         .next()
         .unwrap()
         .0
-        + 4
+        + window_size
 }
 
 #[test]
 fn test() {
-    assert_eq!(7, part1("mjqjpqmgbljsphdztnvjfqwrcgsmlb"));
-    assert_eq!(5, part1("bvwbjplbgvbhsrlpgdmjqwftvncz"));
-    assert_eq!(6, part1("nppdvjthqldpwncqszvftbrmjlhg"));
-    assert_eq!(10, part1("nznrnfrfntjfmvfwmzdfjlvtqnbhcprsg"));
-    assert_eq!(11, part1("zcfzfwzzqfrljwzlrfnpqdbhtmscgvjw"));
+    assert_eq!(7, compute(4, "mjqjpqmgbljsphdztnvjfqwrcgsmlb"));
+    assert_eq!(5, compute(4, "bvwbjplbgvbhsrlpgdmjqwftvncz"));
+    assert_eq!(6, compute(4, "nppdvjthqldpwncqszvftbrmjlhg"));
+    assert_eq!(10, compute(4, "nznrnfrfntjfmvfwmzdfjlvtqnbhcprsg"));
+    assert_eq!(11, compute(4, "zcfzfwzzqfrljwzlrfnpqdbhtmscgvjw"));
+
+    assert_eq!(19, compute(14, "mjqjpqmgbljsphdztnvjfqwrcgsmlb"));
+    assert_eq!(23, compute(14, "bvwbjplbgvbhsrlpgdmjqwftvncz"));
+    assert_eq!(23, compute(14, "nppdvjthqldpwncqszvftbrmjlhg"));
+    assert_eq!(29, compute(14, "nznrnfrfntjfmvfwmzdfjlvtqnbhcprsg"));
+    assert_eq!(26, compute(14, "zcfzfwzzqfrljwzlrfnpqdbhtmscgvjw"));
 }
 
 fn input() -> &'static str {
