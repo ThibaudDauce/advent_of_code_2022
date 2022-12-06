@@ -1,5 +1,6 @@
 fn main() {
     println!("Part1 is {}", part1(input()));
+    println!("Part2 is {}", part2(input()));
 }
 
 fn part1(input: &'static str) -> String {
@@ -53,11 +54,77 @@ fn part1(input: &'static str) -> String {
     result
 }
 
+fn part2(input: &'static str) -> String {
+    let (stacks, instructions) = input.split_once("\n\n").unwrap();
+
+    let mut stacks_as_vec: Vec<&str> = stacks.lines().filter(|line| !line.is_empty()).collect();
+
+    let number_of_columns: usize = stacks_as_vec
+        .pop()
+        .unwrap()
+        .split_whitespace()
+        .last()
+        .unwrap()
+        .parse()
+        .unwrap();
+
+    let mut columns: Vec<Vec<char>> = vec![vec![]; number_of_columns];
+
+    stacks_as_vec.reverse();
+
+    for stack_line in stacks_as_vec {
+        let chars: Vec<char> = stack_line.chars().collect();
+        for column in 0..number_of_columns {
+            let index = column * 4 + 1;
+            if chars[index] != ' ' {
+                columns[column].push(chars[index]);
+            }
+        }
+    }
+
+    for instruction in instructions.trim().lines() {
+        let (a, b) = instruction.trim().split_once(" from ").unwrap();
+        let (_, quantity) = a.split_once(' ').unwrap();
+        let quantity = quantity.parse::<usize>().unwrap();
+
+        let (start, end) = b.split_once(" to ").unwrap();
+        let start = start.parse::<usize>().unwrap();
+        let end = end.parse::<usize>().unwrap();
+
+        let index_to_split = columns[start - 1].len() - quantity;
+        let stack_to_move = columns[start - 1].split_off(index_to_split);
+        columns[end - 1].extend(stack_to_move);
+    }
+
+    let mut result = String::with_capacity(number_of_columns);
+    for column in 0..number_of_columns {
+        result.push(columns[column].pop().unwrap());
+    }
+
+    result
+}
+
 #[test]
 fn test() {
     assert_eq!(
         "CMZ",
         &part1(
+            "
+    [D]    
+[N] [C]    
+[Z] [M] [P]
+ 1   2   3 
+
+move 1 from 2 to 1
+move 3 from 1 to 3
+move 2 from 2 to 1
+move 1 from 1 to 2
+    "
+        )
+    );
+    assert_eq!(
+        "MCD",
+        &part2(
             "
     [D]    
 [N] [C]    
