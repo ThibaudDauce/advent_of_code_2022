@@ -2,13 +2,14 @@ use std::collections::HashMap;
 
 fn main() {
     println!("Part 1 is {}", part1(input()));
+    println!("Part 2 is {}", part2(input()));
 }
 
-fn part1(input: &'static str) -> u32 {
+fn build_directories(input: &'static str) -> HashMap<String, u32> {
     let mut lines = input.trim().lines().map(|line| line.trim());
     lines.next().unwrap();
 
-    let mut current_directory = vec![];
+    let mut current_directory = vec!["/"];
     let mut directories_sizes = HashMap::new();
     for line in lines {
         if line == "$ ls" {
@@ -43,10 +44,27 @@ fn part1(input: &'static str) -> u32 {
     }
 
     directories_sizes
+}
+
+fn part1(input: &'static str) -> u32 {
+    build_directories(input)
         .iter()
         .map(|(_, size)| size)
         .filter(|size| **size < 100_000)
         .sum()
+}
+
+fn part2(input: &'static str) -> u32 {
+    let directories_sizes = build_directories(input);
+
+    let unused_space = 70_000_000 - directories_sizes.get("/").unwrap();
+
+    *directories_sizes
+        .iter()
+        .map(|(_, size)| size)
+        .filter(|size| **size > 30_000_000 - unused_space)
+        .min()
+        .unwrap()
 }
 
 #[test]
@@ -54,6 +72,37 @@ fn test() {
     assert_eq!(
         95437,
         part1(
+            "
+            $ cd /
+            $ ls
+            dir a
+            14848514 b.txt
+            8504156 c.dat
+            dir d
+            $ cd a
+            $ ls
+            dir e
+            29116 f
+            2557 g
+            62596 h.lst
+            $ cd e
+            $ ls
+            584 i
+            $ cd ..
+            $ cd ..
+            $ cd d
+            $ ls
+            4060174 j
+            8033020 d.log
+            5626152 d.ext
+            7214296 k
+            
+    "
+        )
+    );
+    assert_eq!(
+        24933642,
+        part2(
             "
             $ cd /
             $ ls
