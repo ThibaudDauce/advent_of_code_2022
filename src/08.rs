@@ -1,7 +1,8 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 fn main() {
     println!("Part 1 is {}", part1(input()));
+    println!("Part 2 is {}", part2(input()));
 }
 
 fn part1(input: &'static str) -> usize {
@@ -63,11 +64,90 @@ fn part1(input: &'static str) -> usize {
     visible_trees.len()
 }
 
+fn part2(input: &'static str) -> i32 {
+    let lines = input.trim().lines().map(|line| line.trim());
+
+    let mut forest = HashMap::new();
+
+    let mut width = None;
+    let mut height = 0;
+    for (line_index, line) in lines.enumerate() {
+        width = Some(line.len());
+        height += 1;
+
+        for (column_index, one_char) in line.chars().enumerate() {
+            forest.insert(
+                (line_index as i32, column_index as i32),
+                one_char.to_digit(10).unwrap(),
+            );
+        }
+    }
+    let width = width.unwrap();
+
+    let mut scores = HashMap::new();
+
+    for line_index in 0..height {
+        for column_index in 0..width {
+            let my_size = forest
+                .get(&(line_index as i32, column_index as i32))
+                .unwrap();
+
+            let mut score = 1;
+
+            for compute_position in [go_up, go_down, go_left, go_right] {
+                let mut delta = 1;
+                while let Some(size) = forest.get(&compute_position(
+                    (line_index as i32, column_index as i32),
+                    delta,
+                )) {
+                    delta += 1;
+                    if size >= my_size {
+                        break;
+                    }
+                }
+                score *= delta - 1;
+            }
+
+            scores.insert((line_index, column_index), score);
+        }
+    }
+
+    *scores.values().max().unwrap()
+}
+
+fn go_up((a, b): (i32, i32), delta: i32) -> (i32, i32) {
+    (a - delta, b)
+}
+
+fn go_down((a, b): (i32, i32), delta: i32) -> (i32, i32) {
+    (a + delta, b)
+}
+
+fn go_left((a, b): (i32, i32), delta: i32) -> (i32, i32) {
+    (a, b - delta)
+}
+
+fn go_right((a, b): (i32, i32), delta: i32) -> (i32, i32) {
+    (a, b + delta)
+}
+
 #[test]
 fn test() {
     assert_eq!(
         21,
         part1(
+            "
+    30373
+    25512
+    65332
+    33549
+    35390
+    "
+        )
+    );
+    assert_eq!(
+        8,
+        part2(
             "
     30373
     25512
