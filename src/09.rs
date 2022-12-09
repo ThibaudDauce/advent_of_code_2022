@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 fn main() {
     println!("Part 1 is {}", part1(input()));
+    println!("Part 2 is {}", part2(input()));
 }
 
 fn part1(input: &'static str) -> usize {
@@ -41,6 +42,47 @@ fn part1(input: &'static str) -> usize {
     visited.len()
 }
 
+fn part2(input: &'static str) -> usize {
+    let mut visited = HashSet::new();
+
+    let mut rope: Vec<(i32, i32)> = vec![(0, 0); 10];
+
+    for line in input.trim().lines().map(|line| line.trim()) {
+        let (direction, quantity) = line.split_once(' ').unwrap();
+
+        for _ in 0..quantity.parse().unwrap() {
+            match direction {
+                "L" => rope[0].0 -= 1,
+                "R" => rope[0].0 += 1,
+                "U" => rope[0].1 += 1,
+                "D" => rope[0].1 -= 1,
+                _ => panic!(),
+            }
+
+            for index in 1..rope.len() {
+                let tuple = &mut rope[index - 1..=index];
+
+                let head = tuple[0];
+                let mut tail = &mut tuple[1];
+
+                if (head.0 - tail.0).abs() <= 1 && (head.1 - tail.1).abs() <= 1 {
+                    continue;
+                }
+
+                let diff_0 = clamp(head.0 - tail.0, -1, 1);
+                let diff_1 = clamp(head.1 - tail.1, -1, 1);
+
+                tail.0 += diff_0;
+                tail.1 += diff_1;
+            }
+
+            visited.insert(rope.last().unwrap().clone());
+        }
+    }
+
+    visited.len()
+}
+
 fn clamp(value: i32, min: i32, max: i32) -> i32 {
     if value > max {
         return max;
@@ -66,6 +108,36 @@ fn test() {
             D 1
             L 5
             R 2
+    "
+        )
+    );
+    assert_eq!(
+        1,
+        part2(
+            "
+            R 4
+            U 4
+            L 3
+            D 1
+            R 4
+            D 1
+            L 5
+            R 2
+    "
+        )
+    );
+    assert_eq!(
+        36,
+        part2(
+            "
+            R 5
+            U 8
+            L 8
+            D 3
+            R 17
+            D 10
+            L 25
+            U 20
     "
         )
     );
