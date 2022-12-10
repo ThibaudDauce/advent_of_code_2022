@@ -1,5 +1,6 @@
 fn main() {
     println!("Part 1 is {}", part1(input()));
+    println!("Part 2 is \n\n{}", part2(input()));
 }
 
 fn part1(input: &'static str) -> i32 {
@@ -39,12 +40,70 @@ fn part1(input: &'static str) -> i32 {
     result
 }
 
+fn part2(input: &'static str) -> String {
+    let cycles = input
+        .trim()
+        .lines()
+        .map(|line| line.trim())
+        .flat_map(|line| match line {
+            "noop" => vec![0],
+            _ => {
+                let (operation, value) = line.split_once(' ').unwrap();
+                match operation {
+                    "addx" => vec![0, value.parse::<i32>().unwrap()],
+                    _ => panic!(),
+                }
+            }
+        })
+        .enumerate()
+        .map(|(cycle, diff)| (cycle + 1, diff));
+
+    let max = 240;
+    let mut register = 1;
+    let mut result = String::with_capacity(max + 6);
+    for (cycle, diff) in cycles {
+        if cycle > max {
+            break;
+        }
+
+        let position = (cycle as i32 - 1) % 40;
+
+        if position == 0 && cycle != 1 {
+            result.push('\n');
+        }
+
+        if register == position || register - 1 == position || register + 1 == position {
+            result.push('#');
+        } else {
+            result.push('.');
+        }
+
+        register += diff;
+    }
+
+    result
+}
+
 #[test]
 fn test() {
+    assert_eq!(13140, part1(test_input()));
     assert_eq!(
-        13140,
-        part1(
-            "
+        "
+##..##..##..##..##..##..##..##..##..##..
+###...###...###...###...###...###...###.
+####....####....####....####....####....
+#####.....#####.....#####.....#####.....
+######......######......######......####
+#######.......#######.......#######.....
+"
+        .trim(),
+        part2(test_input())
+    );
+}
+
+#[cfg(test)]
+fn test_input() -> &'static str {
+    "
     addx 15
 addx -11
 addx 6
@@ -192,8 +251,6 @@ noop
 noop
 noop
     "
-        )
-    )
 }
 
 fn input() -> &'static str {
