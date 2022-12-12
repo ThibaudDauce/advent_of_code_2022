@@ -1,32 +1,35 @@
 use std::collections::{HashMap, HashSet};
 
 fn main() {
-    println!("Part 1 is {}", part1(input()));
+    println!("Part 1 is {}", compute(input(), false));
+    println!("Part 2 is {}", compute(input(), true));
 }
 
-fn part1(input: &'static str) -> i32 {
+fn compute(input: &'static str, part2: bool) -> i32 {
     let mut map: HashMap<(i32, i32), i32> = HashMap::new();
 
     let mut visited: HashSet<(i32, i32)> = HashSet::new();
     let mut min_paths: HashMap<(i32, i32), i32> = HashMap::new();
-    let mut end = None;
+    let mut ends = HashSet::new();
 
     for (x, line) in input.trim().lines().map(|line| line.trim()).enumerate() {
         for (y, mut char) in line.chars().enumerate() {
             if char == 'S' {
-                min_paths.insert((x as i32, y as i32), 0);
                 char = 'a';
+                ends.insert((x as i32, y as i32));
             }
+            if part2 && char == 'a' {
+                ends.insert((x as i32, y as i32));
+            }
+
             if char == 'E' {
-                end = Some((x as i32, y as i32));
+                min_paths.insert((x as i32, y as i32), 0);
                 char = 'z';
             }
 
             map.insert((x as i32, y as i32), char.to_digit(36).unwrap() as i32);
         }
     }
-
-    let end = end.unwrap();
 
     loop {
         if let Some((current_position, min_path)) = min_paths
@@ -44,7 +47,7 @@ fn part1(input: &'static str) -> i32 {
                 let next_position = (current_position.0 + diff_x, current_position.1 + diff_y);
 
                 if let Some(next_height) = map.get(&next_position) {
-                    if next_height - current_height > 1 {
+                    if current_height - next_height > 1 {
                         continue;
                     }
 
@@ -59,23 +62,44 @@ fn part1(input: &'static str) -> i32 {
         }
     }
 
-    *min_paths.get(&end).unwrap()
+    *min_paths
+        .iter()
+        .filter(|(position, _)| ends.contains(position))
+        .map(|(_, min_path)| min_path)
+        .min()
+        .unwrap()
 }
 
 #[test]
 fn test() {
     assert_eq!(
         31,
-        part1(
+        compute(
             "
             Sabqponm
             abcryxxl
             accszExk
             acctuvwj
             abdefghi
-    "
+    ",
+            false
         )
-    )
+    );
+    assert_eq!(394, compute(input(), false));
+
+    assert_eq!(
+        29,
+        compute(
+            "
+            Sabqponm
+            abcryxxl
+            accszExk
+            acctuvwj
+            abdefghi
+    ",
+            true
+        )
+    );
 }
 
 fn input() -> &'static str {
