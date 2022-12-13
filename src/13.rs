@@ -2,6 +2,7 @@ use std::cmp::{min, Ordering};
 
 fn main() {
     println!("Part 1 is {}", part1(input()));
+    println!("Part 2 is {}", part2(input()));
 }
 
 fn part1(input: &'static str) -> usize {
@@ -19,7 +20,7 @@ fn part1(input: &'static str) -> usize {
         let (b, tail) = parse_value(b);
         assert_eq!(tail, "");
 
-        if compare(&a, &b) == Ordering::Less {
+        if a < b {
             sum += index;
         }
     }
@@ -27,38 +28,74 @@ fn part1(input: &'static str) -> usize {
     sum
 }
 
-#[derive(Debug)]
+fn part2(input: &'static str) -> usize {
+    let mut packets: Vec<Value> = input
+        .trim()
+        .lines()
+        .map(|line| line.trim())
+        .filter(|line| !line.is_empty())
+        .map(|packet| parse_value(packet).0)
+        .collect();
+
+    let divider_packet_2 = parse_value("[[2]]").0;
+    packets.push(divider_packet_2.clone());
+    let divider_packet_6 = parse_value("[[6]]").0;
+    packets.push(divider_packet_6.clone());
+
+    packets.sort();
+
+    return (packets
+        .iter()
+        .position(|packet| *packet == divider_packet_2)
+        .unwrap()
+        + 1)
+        * (packets
+            .iter()
+            .position(|packet| *packet == divider_packet_6)
+            .unwrap()
+            + 1);
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
 enum Value {
     Vec(Vec<Value>),
     Digit(u32),
 }
 
-fn compare(a: &Value, b: &Value) -> Ordering {
-    match (a, b) {
-        (Value::Digit(a), Value::Digit(b)) => Ord::cmp(a, b),
-        (Value::Vec(a_values), Value::Vec(b_values)) => {
-            for index in 0..a_values.len() {
-                let a = &a_values[index];
+impl PartialOrd for Value {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
-                if let Some(b) = b_values.get(index) {
-                    let result = compare(a, b);
-                    if result != Ordering::Equal {
-                        return result;
+impl Ord for Value {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, other) {
+            (Value::Digit(a), Value::Digit(b)) => Ord::cmp(a, b),
+            (Value::Vec(a_values), Value::Vec(b_values)) => {
+                for index in 0..a_values.len() {
+                    let a = &a_values[index];
+
+                    if let Some(b) = b_values.get(index) {
+                        let result = a.cmp(b);
+                        if result != Ordering::Equal {
+                            return result;
+                        }
+                    } else {
+                        return Ordering::Greater;
                     }
+                }
+
+                if a_values.len() == b_values.len() {
+                    Ordering::Equal
                 } else {
-                    return Ordering::Greater;
+                    assert!(a_values.len() < b_values.len());
+                    Ordering::Less
                 }
             }
-
-            if a_values.len() == b_values.len() {
-                Ordering::Equal
-            } else {
-                assert!(a_values.len() < b_values.len());
-                Ordering::Less
-            }
+            (Value::Digit(a), b) => Value::Vec(vec![Value::Digit(*a)]).cmp(b),
+            (a, Value::Digit(b)) => a.cmp(&Value::Vec(vec![Value::Digit(*b)])),
         }
-        (Value::Digit(a), b) => compare(&Value::Vec(vec![Value::Digit(*a)]), b),
-        (a, Value::Digit(b)) => compare(a, &Value::Vec(vec![Value::Digit(*b)])),
     }
 }
 
@@ -105,6 +142,39 @@ fn test() {
     assert_eq!(
         13,
         part1(
+            "
+[1,1,3,1,1]
+[1,1,5,1,1]
+
+[[1],[2,3,4]]
+[[1],4]
+
+[9]
+[[8,7,6]]
+
+[[4,4],4,4]
+[[4,4],4,4,4]
+
+[7,7,7,7]
+[7,7,7]
+
+[]
+[3]
+
+[[[]]]
+[[]]
+
+[1,[2,[3,[4,[5,6,7]]]],8,9]
+[1,[2,[3,[4,[5,6,0]]]],8,9]
+    "
+        )
+    );
+
+    assert_eq!(5938, part1(input()));
+
+    assert_eq!(
+        140,
+        part2(
             "
 [1,1,3,1,1]
 [1,1,5,1,1]
