@@ -1,10 +1,9 @@
 use std::collections::HashMap;
-
-#[cfg(test)]
 use std::ops::Range;
 
 fn main() {
-    println!("Part 1 is {}", part1(input()));
+    println!("Part 1 is {}", compute(input(), false));
+    println!("Part 2 is {}", compute(input(), true));
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -13,9 +12,8 @@ enum Value {
     Rock,
 }
 
-fn part1(input: &'static str) -> usize {
+fn compute(input: &'static str, part2: bool) -> usize {
     let mut cave = HashMap::new();
-    let mut lowest = 0;
 
     for line in input.trim().lines().map(|line| line.trim()) {
         for window in line
@@ -30,27 +28,33 @@ fn part1(input: &'static str) -> usize {
 
             for x in create_range(start_x, end_x) {
                 for y in create_range(start_y, end_y) {
-                    if y > lowest {
-                        lowest = y;
-                    }
-
                     cave.insert((x, y), Value::Rock);
                 }
             }
         }
     }
 
+    // let min_x = *cave.iter().map(|((x, _), _)| x).min().unwrap();
+    let max_x = *cave.iter().map(|((x, _), _)| x).max().unwrap();
+    let lowest = *cave.iter().map(|((_, y), _)| y).max().unwrap();
+
+    if part2 {
+        for x in 0..(max_x * 2) {
+            cave.insert((x, lowest + 2), Value::Rock);
+        }
+    }
+
     #[cfg(test)]
-    print_cave(&cave, 490..510, 0..20, None);
+    print_cave(&cave, 0..(max_x * 2), 0..lowest + 3, None);
 
     'main: loop {
         let (mut x, mut y) = (500, 0);
 
         loop {
             #[cfg(test)]
-            print_cave(&cave, 490..510, 0..20, Some((x, y)));
+            print_cave(&cave, 0..(max_x * 2), 0..lowest + 3, Some((x, y)));
 
-            if y > lowest {
+            if y > lowest + 5 || cave.contains_key(&(x, y)) {
                 break 'main;
             }
 
@@ -76,12 +80,13 @@ fn part1(input: &'static str) -> usize {
         }
     }
 
+    print_cave(&cave, 0..(max_x * 2), 0..lowest + 3, None);
+
     cave.iter()
         .filter(|(_, value)| **value == Value::Sand)
         .count()
 }
 
-#[cfg(test)]
 fn print_cave(
     cave: &HashMap<(u32, u32), Value>,
     x_range: Range<u32>,
@@ -130,13 +135,24 @@ fn create_range(a: u32, b: u32) -> Box<dyn std::iter::Iterator<Item = u32>> {
 fn test() {
     assert_eq!(
         24,
-        part1(
+        compute(
             "
         498,4 -> 498,6 -> 496,6
         503,4 -> 502,4 -> 502,9 -> 494,9
-    "
+    ",
+            false
         )
-    )
+    );
+    assert_eq!(
+        93,
+        compute(
+            "
+        498,4 -> 498,6 -> 496,6
+        503,4 -> 502,4 -> 502,9 -> 494,9
+    ",
+            true
+        )
+    );
 }
 
 fn input() -> &'static str {
