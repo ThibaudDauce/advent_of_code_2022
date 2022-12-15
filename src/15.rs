@@ -2,22 +2,25 @@ use std::collections::HashSet;
 
 fn main() {
     println!("Part 1 is {}", part1(input(), 2_000_000));
+
+    let position = part2(input(), 0, 4_000_000);
+    println!("Part 2 is {}", position.x * 4_000_000 + position.y);
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Position {
-    x: i32,
-    y: i32,
+    x: i64,
+    y: i64,
 }
 
 #[derive(Debug)]
 struct Sensor {
     position: Position,
     beacon: Position,
-    distance: i32,
+    distance: i64,
 }
 
-fn part1(input: &'static str, target_y: i32) -> usize {
+fn parse_input(input: &'static str) -> Vec<Sensor> {
     let mut sensors = vec![];
     for line in input.trim().lines().map(|line| line.trim()) {
         let line = line.strip_prefix("Sensor at ").unwrap();
@@ -43,6 +46,12 @@ fn part1(input: &'static str, target_y: i32) -> usize {
         })
     }
 
+    sensors
+}
+
+fn part1(input: &'static str, target_y: i64) -> usize {
+    let sensors = parse_input(input);
+
     let mut ranges = vec![];
     for sensor in &sensors {
         let distance_y = (sensor.position.y - target_y).abs();
@@ -60,7 +69,7 @@ fn part1(input: &'static str, target_y: i32) -> usize {
     ranges.sort_by_key(|range| *range.start());
 
     let mut sum = 0;
-    let mut last = i32::MIN;
+    let mut last = i64::MIN;
     for range in ranges {
         for i in range {
             if i > last {
@@ -74,10 +83,62 @@ fn part1(input: &'static str, target_y: i32) -> usize {
         .iter()
         .filter(|sensor| sensor.beacon.y == target_y)
         .map(|sensor| sensor.beacon.x)
-        .collect::<HashSet<i32>>()
+        .collect::<HashSet<i64>>()
         .len();
 
     sum - number_of_beacons_on_target_y
+}
+
+fn part2(input: &'static str, min: i64, max: i64) -> Position {
+    let sensors = parse_input(input);
+
+    'loop_y: for target_y in min..=max {
+        let mut ranges = vec![];
+        for sensor in &sensors {
+            let distance_y = (sensor.position.y - target_y).abs();
+
+            if distance_y > sensor.distance {
+                continue;
+            }
+
+            let range = std::cmp::max(min, sensor.position.x - (sensor.distance - distance_y))
+                ..=std::cmp::min(max, sensor.position.x + (sensor.distance - distance_y));
+
+            if !range.is_empty() {
+                ranges.push(range)
+            }
+        }
+
+        ranges.sort_by_key(|range| *range.start());
+
+        let mut target_x = min;
+        for range in ranges {
+            if target_x > max {
+                continue 'loop_y;
+            }
+
+            if *range.start() > target_x {
+                assert_eq!(1, range.start() - target_x);
+                return Position {
+                    x: target_x,
+                    y: target_y,
+                };
+            }
+
+            if *range.end() + 1 > target_x {
+                target_x = *range.end() + 1;
+            }
+        }
+
+        if target_x == max {
+            return Position {
+                x: target_x,
+                y: target_y,
+            };
+        }
+    }
+
+    panic!();
 }
 
 #[test]
@@ -103,6 +164,30 @@ fn test() {
             
     ",
             10,
+        )
+    );
+    assert_eq!(
+        Position { x: 14, y: 11 },
+        part2(
+            "
+            Sensor at x=2, y=18: closest beacon is at x=-2, y=15
+            Sensor at x=9, y=16: closest beacon is at x=10, y=16
+            Sensor at x=13, y=2: closest beacon is at x=15, y=3
+            Sensor at x=12, y=14: closest beacon is at x=10, y=16
+            Sensor at x=10, y=20: closest beacon is at x=10, y=16
+            Sensor at x=14, y=17: closest beacon is at x=10, y=16
+            Sensor at x=8, y=7: closest beacon is at x=2, y=10
+            Sensor at x=2, y=0: closest beacon is at x=2, y=10
+            Sensor at x=0, y=11: closest beacon is at x=2, y=10
+            Sensor at x=20, y=14: closest beacon is at x=25, y=17
+            Sensor at x=17, y=20: closest beacon is at x=21, y=22
+            Sensor at x=16, y=7: closest beacon is at x=15, y=3
+            Sensor at x=14, y=3: closest beacon is at x=15, y=3
+            Sensor at x=20, y=1: closest beacon is at x=15, y=3
+            
+    ",
+            0,
+            20,
         )
     );
 }
