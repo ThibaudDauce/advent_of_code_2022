@@ -1,189 +1,505 @@
-use std::collections::{HashMap, HashSet};
-
 fn main() {
-    println!("Part 1 is {}", part1(input()));
+    println!("Part 1 is {}", part1::part1(input()));
+    println!("Part 2 is {}", part2::part2(input()));
 }
 
-#[derive(Debug, Clone)]
-struct Valve {
-    rate: u64,
-    destinations: HashMap<String, u64>,
-}
+mod part1 {
+    use std::collections::{HashMap, HashSet};
 
-const MAX_MINUTES: u64 = 30;
-
-#[derive(Debug, Clone)]
-struct Cave {
-    path: Vec<String>,
-    minute: u64,
-    position: String,
-    presure_per_minutes: u64,
-    presure: u64,
-    valves_names_to_visit: HashSet<String>,
-}
-
-fn part1(input: &'static str) -> u64 {
-    let mut valves = HashMap::new();
-
-    for line in input.trim().lines().map(|line| line.trim()) {
-        let line = line.strip_prefix("Valve ").unwrap();
-        let (name, tail) = line.split_once(" has flow rate=").unwrap();
-        let (rate_as_string, tail) = tail
-            .split_once("; tunnels lead to valves ")
-            .unwrap_or_else(|| tail.split_once("; tunnel leads to valve ").unwrap());
-        let rate: u64 = rate_as_string.parse().unwrap();
-        let mut destinations: HashMap<String, u64> = tail
-            .split(", ")
-            .map(|destination| (destination.to_owned(), 1))
-            .collect();
-        destinations.insert(name.to_owned(), 0);
-
-        valves.insert(name.to_owned(), Valve { rate, destinations });
+    #[derive(Debug, Clone)]
+    struct Valve {
+        rate: u64,
+        destinations: HashMap<String, u64>,
     }
 
-    let valves_names_to_visit: HashSet<String> = valves
-        .iter()
-        .filter(|(_, valve)| valve.rate != 0)
-        .map(|(name, _)| name)
-        .cloned()
-        .collect();
-    let valves_names: HashSet<String> = valves.keys().cloned().collect();
+    const MAX_MINUTES: u64 = 30;
 
-    let valves_cloned = valves.clone();
+    #[derive(Debug, Clone)]
+    struct Cave {
+        path: Vec<String>,
+        minute: u64,
+        position: String,
+        presure_per_minutes: u64,
+        presure: u64,
+        valves_names_to_visit: HashSet<String>,
+    }
 
-    for name in &valves_names {
-        loop {
-            let valve = valves.get_mut(name).unwrap();
+    pub fn part1(input: &'static str) -> u64 {
+        let mut valves = HashMap::new();
 
-            if valve.destinations.len() == valves_names.len() {
-                break;
-            }
+        for line in input.trim().lines().map(|line| line.trim()) {
+            let line = line.strip_prefix("Valve ").unwrap();
+            let (name, tail) = line.split_once(" has flow rate=").unwrap();
+            let (rate_as_string, tail) = tail
+                .split_once("; tunnels lead to valves ")
+                .unwrap_or_else(|| tail.split_once("; tunnel leads to valve ").unwrap());
+            let rate: u64 = rate_as_string.parse().unwrap();
+            let mut destinations: HashMap<String, u64> = tail
+                .split(", ")
+                .map(|destination| (destination.to_owned(), 1))
+                .collect();
+            destinations.insert(name.to_owned(), 0);
 
-            for (destination, distance) in valve.destinations.clone().iter() {
-                let other = valves_cloned.get(destination).unwrap();
-                for (other_destination, other_distance) in &other.destinations {
-                    if let Some(previous_distance) = valve.destinations.get(other_destination) {
-                        assert!(*previous_distance <= distance + other_distance);
-                    } else {
-                        valve
-                            .destinations
-                            .insert(other_destination.clone(), distance + other_distance);
+            valves.insert(name.to_owned(), Valve { rate, destinations });
+        }
+
+        let valves_names_to_visit: HashSet<String> = valves
+            .iter()
+            .filter(|(_, valve)| valve.rate != 0)
+            .map(|(name, _)| name)
+            .cloned()
+            .collect();
+        let valves_names: HashSet<String> = valves.keys().cloned().collect();
+
+        let valves_cloned = valves.clone();
+
+        for name in &valves_names {
+            loop {
+                let valve = valves.get_mut(name).unwrap();
+
+                if valve.destinations.len() == valves_names.len() {
+                    break;
+                }
+
+                for (destination, distance) in valve.destinations.clone().iter() {
+                    let other = valves_cloned.get(destination).unwrap();
+                    for (other_destination, other_distance) in &other.destinations {
+                        if let Some(previous_distance) = valve.destinations.get(other_destination) {
+                            assert!(*previous_distance <= distance + other_distance);
+                        } else {
+                            valve
+                                .destinations
+                                .insert(other_destination.clone(), distance + other_distance);
+                        }
+
+                        if !valve.destinations.contains_key(other_destination) {}
                     }
-
-                    if !valve.destinations.contains_key(other_destination) {}
                 }
             }
         }
-    }
 
-    let cave = Cave {
-        path: vec![],
-        minute: 1,
-        position: "AA".to_owned(),
-        presure_per_minutes: 0,
-        presure: 0,
-        valves_names_to_visit,
-    };
-    let mut caves = vec![cave];
-    loop {
-        let mut changed = false;
-        let mut new_caves = vec![];
+        let cave = Cave {
+            path: vec![],
+            minute: 1,
+            position: "AA".to_owned(),
+            presure_per_minutes: 0,
+            presure: 0,
+            valves_names_to_visit,
+        };
+        let mut caves = vec![cave];
+        loop {
+            let mut changed = false;
+            let mut new_caves = vec![];
 
-        for cave in caves.into_iter() {
-            let (next, did_change) = next_caves(&valves, cave);
-            new_caves.extend(next);
+            for cave in caves.into_iter() {
+                let (next, did_change) = next_caves(&valves, cave);
+                new_caves.extend(next);
 
-            if did_change {
-                changed = true;
+                if did_change {
+                    changed = true;
+                }
+            }
+
+            caves = new_caves;
+
+            if !changed {
+                break;
             }
         }
 
-        // dbg!(&new_caves);
-        // dbg!("----------------------");
-        // dbg!("----------------------");
-        // dbg!("----------------------");
-        // dbg!("----------------------");
-        // dbg!("----------------------");
-        // dbg!("----------------------");
-        // dbg!("----------------------");
-        // dbg!("----------------------");
-        // dbg!("----------------------");
-        // dbg!("----------------------");
+        let best_cave = caves
+            .iter()
+            .max_by_key(|cave| cave.presure)
+            .unwrap()
+            .clone();
 
-        caves = new_caves;
-
-        if !changed {
-            break;
-        }
+        best_cave.presure
     }
 
-    let best_cave = caves
-        .iter()
-        .max_by_key(|cave| cave.presure)
-        .unwrap()
-        .clone();
+    fn next_caves(valves: &HashMap<String, Valve>, mut cave: Cave) -> (Vec<Cave>, bool) {
+        if cave.minute > MAX_MINUTES || cave.valves_names_to_visit.is_empty() {
+            if cave.minute <= MAX_MINUTES {
+                cave.presure += (MAX_MINUTES - cave.minute + 1) * cave.presure_per_minutes;
+                cave.minute = MAX_MINUTES + 1;
+            }
 
-    dbg!(&best_cave);
+            return (vec![cave], false);
+        }
 
-    best_cave.presure
+        let mut next = Vec::with_capacity(cave.valves_names_to_visit.len());
+        for valve_name_to_visit in cave.valves_names_to_visit.clone() {
+            let mut new_cave = cave.clone();
+
+            let number_of_minutes_passing = valves
+                .get(&new_cave.position)
+                .unwrap()
+                .destinations
+                .get(&valve_name_to_visit)
+                .unwrap()
+                + 1;
+
+            if new_cave.minute + number_of_minutes_passing > MAX_MINUTES {
+                continue;
+            }
+
+            new_cave.minute += number_of_minutes_passing;
+            new_cave.presure += new_cave.presure_per_minutes * number_of_minutes_passing;
+            new_cave.presure_per_minutes += valves.get(&valve_name_to_visit).unwrap().rate;
+            new_cave.path.push(new_cave.position);
+            new_cave.position = valve_name_to_visit.clone();
+
+            new_cave
+                .valves_names_to_visit
+                .remove(&valve_name_to_visit.clone());
+
+            next.push(new_cave)
+        }
+
+        if next.is_empty() {
+            if cave.minute <= MAX_MINUTES {
+                cave.presure += (MAX_MINUTES - cave.minute + 1) * cave.presure_per_minutes;
+                cave.minute = MAX_MINUTES + 1;
+            }
+
+            return (vec![cave], false);
+        }
+
+        (next, true)
+    }
 }
 
-fn next_caves(valves: &HashMap<String, Valve>, mut cave: Cave) -> (Vec<Cave>, bool) {
-    if cave.minute > MAX_MINUTES || cave.valves_names_to_visit.is_empty() {
-        if cave.minute <= MAX_MINUTES {
-            cave.presure += (MAX_MINUTES - cave.minute + 1) * cave.presure_per_minutes;
-            cave.minute = MAX_MINUTES + 1;
-        }
+mod part2 {
+    use std::{
+        cmp::max,
+        collections::{HashMap, HashSet},
+    };
 
-        return (vec![cave], false);
+    #[derive(Debug, Clone)]
+    struct Valve {
+        rate: u64,
+        destinations: HashMap<String, u64>,
     }
 
-    let mut next = Vec::with_capacity(cave.valves_names_to_visit.len());
-    for valve_name_to_visit in cave.valves_names_to_visit.clone() {
-        let mut new_cave = cave.clone();
+    const MAX_MINUTES: u64 = 26;
 
-        let number_of_minutes_passing = valves
-            .get(&new_cave.position)
-            .unwrap()
-            .destinations
-            .get(&valve_name_to_visit)
-            .unwrap()
-            + 1;
-
-        if new_cave.minute + number_of_minutes_passing > MAX_MINUTES {
-            continue;
-        }
-
-        new_cave.minute += number_of_minutes_passing;
-        new_cave.presure += new_cave.presure_per_minutes * number_of_minutes_passing;
-        new_cave.presure_per_minutes += valves.get(&valve_name_to_visit).unwrap().rate;
-        new_cave.path.push(new_cave.position);
-        new_cave.position = valve_name_to_visit.clone();
-
-        new_cave
-            .valves_names_to_visit
-            .remove(&valve_name_to_visit.clone());
-
-        next.push(new_cave)
+    #[derive(Debug, Clone)]
+    enum Action {
+        Nothing,
+        Done,
+        Go(u64, String),
     }
 
-    if next.is_empty() {
-        if cave.minute <= MAX_MINUTES {
-            cave.presure += (MAX_MINUTES - cave.minute + 1) * cave.presure_per_minutes;
-            cave.minute = MAX_MINUTES + 1;
-        }
-
-        return (vec![cave], false);
+    #[derive(Debug, Clone)]
+    struct Cave {
+        path: (Vec<String>, Vec<String>),
+        minute: u64,
+        position: (String, String),
+        action: (Action, Action),
+        presure_per_minutes: u64,
+        presure: u64,
+        valves_names_to_visit: HashSet<String>,
     }
 
-    (next, true)
+    pub fn part2(input: &'static str) -> u64 {
+        let mut valves = HashMap::new();
+
+        for line in input.trim().lines().map(|line| line.trim()) {
+            let line = line.strip_prefix("Valve ").unwrap();
+            let (name, tail) = line.split_once(" has flow rate=").unwrap();
+            let (rate_as_string, tail) = tail
+                .split_once("; tunnels lead to valves ")
+                .unwrap_or_else(|| tail.split_once("; tunnel leads to valve ").unwrap());
+            let rate: u64 = rate_as_string.parse().unwrap();
+            let mut destinations: HashMap<String, u64> = tail
+                .split(", ")
+                .map(|destination| (destination.to_owned(), 1))
+                .collect();
+            destinations.insert(name.to_owned(), 0);
+
+            valves.insert(name.to_owned(), Valve { rate, destinations });
+        }
+
+        let valves_names_to_visit: HashSet<String> = valves
+            .iter()
+            .filter(|(_, valve)| valve.rate != 0)
+            .map(|(name, _)| name)
+            .cloned()
+            .collect();
+        let valves_names: HashSet<String> = valves.keys().cloned().collect();
+
+        let valves_cloned = valves.clone();
+
+        for name in &valves_names {
+            loop {
+                let valve = valves.get_mut(name).unwrap();
+
+                if valve.destinations.len() == valves_names.len() {
+                    break;
+                }
+
+                for (destination, distance) in valve.destinations.clone().iter() {
+                    let other = valves_cloned.get(destination).unwrap();
+                    for (other_destination, other_distance) in &other.destinations {
+                        if let Some(previous_distance) = valve.destinations.get(other_destination) {
+                            assert!(*previous_distance <= distance + other_distance);
+                        } else {
+                            valve
+                                .destinations
+                                .insert(other_destination.clone(), distance + other_distance);
+                        }
+
+                        if !valve.destinations.contains_key(other_destination) {}
+                    }
+                }
+            }
+        }
+
+        let cave = Cave {
+            path: (vec![], vec![]),
+            minute: 1,
+            position: ("AA".to_owned(), "AA".to_owned()),
+            action: (Action::Nothing, Action::Nothing),
+            presure_per_minutes: 0,
+            presure: 0,
+            valves_names_to_visit,
+        };
+
+        let best_cave = best_cave(&valves, cave, 0);
+        // let mut caves = vec![cave];
+        // loop {
+        //     let mut changed = false;
+        //     let mut new_caves = vec![];
+
+        //     for cave in caves.into_iter() {
+        //         let (next, did_change) = next_caves(&valves, cave);
+        //         new_caves.extend(next);
+
+        //         if did_change {
+        //             changed = true;
+        //         }
+        //     }
+
+        //     caves = new_caves;
+
+        //     if !changed {
+        //         break;
+        //     }
+        // }
+
+        // let best_cave = caves
+        //     .iter()
+        //     .max_by_key(|cave| cave.presure)
+        //     .unwrap()
+        //     .clone();
+
+        dbg!(&best_cave);
+
+        best_cave.presure
+    }
+
+    fn best_cave(valves: &HashMap<String, Valve>, mut cave: Cave, mut current_score: u64) -> Cave {
+        let mut valves_to_visit: Vec<String> = cave.valves_names_to_visit.iter().cloned().collect();
+        valves_to_visit.sort_by_key(|name| valves.get(name).unwrap().rate as i64 * -1);
+
+        let minutes_remaining = MAX_MINUTES - cave.minute + 2;
+        let best_theory_score = valves_to_visit
+            .iter()
+            .enumerate()
+            .map(|(index, name)| {
+                max(
+                    0,
+                    (minutes_remaining as i64 - index as i64)
+                        * valves.get(name).unwrap().rate as i64,
+                ) as u64
+            })
+            .sum::<u64>()
+            + cave.presure
+            + minutes_remaining * cave.presure_per_minutes;
+
+        if current_score > best_theory_score {
+            // println!("Minutes remaining {minutes_remaining}");
+            // println!("Theory score {best_theory_score}");
+            // println!("{current_score} / {best_theory_score}");
+            return cave;
+        }
+
+        match cave.action {
+            (Action::Done, Action::Done) => {
+                if cave.minute <= MAX_MINUTES {
+                    cave.presure += (MAX_MINUTES - cave.minute + 1) * cave.presure_per_minutes;
+                    cave.minute = MAX_MINUTES + 1;
+                }
+
+                return cave;
+            }
+            (Action::Go(minutes_a, destination_a), Action::Go(minutes_b, destination_b)) => {
+                if minutes_a == minutes_b {
+                    cave.minute += minutes_a;
+                    assert!(cave.minute <= MAX_MINUTES);
+                    cave.presure += cave.presure_per_minutes * minutes_a;
+
+                    cave.presure_per_minutes += valves.get(&destination_a).unwrap().rate;
+                    cave.presure_per_minutes += valves.get(&destination_b).unwrap().rate;
+
+                    cave.path.0.push(destination_a.clone());
+                    cave.path.1.push(destination_b.clone());
+
+                    cave.position.0 = destination_a;
+                    cave.position.1 = destination_b;
+
+                    cave.action.0 = Action::Nothing;
+                    cave.action.1 = Action::Nothing;
+                } else if minutes_a < minutes_b {
+                    cave.minute += minutes_a;
+                    assert!(cave.minute <= MAX_MINUTES);
+                    cave.presure += cave.presure_per_minutes * minutes_a;
+
+                    cave.presure_per_minutes += valves.get(&destination_a).unwrap().rate;
+                    cave.path.0.push(destination_a.clone());
+                    cave.position.0 = destination_a;
+
+                    cave.action.0 = Action::Nothing;
+                    cave.action.1 = Action::Go(minutes_b - minutes_a, destination_b);
+                } else {
+                    cave.minute += minutes_b;
+                    assert!(cave.minute <= MAX_MINUTES);
+                    cave.presure += cave.presure_per_minutes * minutes_b;
+
+                    cave.presure_per_minutes += valves.get(&destination_b).unwrap().rate;
+                    cave.path.1.push(destination_b.clone());
+                    cave.position.1 = destination_b;
+
+                    cave.action.0 = Action::Go(minutes_a - minutes_b, destination_a);
+                    cave.action.1 = Action::Nothing;
+                }
+            }
+            (Action::Go(minutes_a, destination_a), Action::Done) => {
+                cave.minute += minutes_a;
+                assert!(cave.minute <= MAX_MINUTES);
+                cave.presure += cave.presure_per_minutes * minutes_a;
+
+                cave.presure_per_minutes += valves.get(&destination_a).unwrap().rate;
+                cave.path.0.push(destination_a.clone());
+                cave.position.0 = destination_a;
+
+                cave.action.0 = Action::Nothing;
+            }
+            (Action::Done, Action::Go(minutes_b, destination_b)) => {
+                cave.minute += minutes_b;
+                assert!(cave.minute <= MAX_MINUTES);
+                cave.presure += cave.presure_per_minutes * minutes_b;
+
+                cave.presure_per_minutes += valves.get(&destination_b).unwrap().rate;
+                cave.path.1.push(destination_b.clone());
+                cave.position.1 = destination_b;
+
+                cave.action.1 = Action::Nothing;
+            }
+            _ => {}
+        }
+
+        let position = match cave.action {
+            (Action::Nothing, Action::Nothing) => &cave.position.0,
+            (Action::Go(..) | Action::Done, Action::Nothing) => &cave.position.1,
+            (Action::Nothing, Action::Go(..) | Action::Done) => &cave.position.0,
+            _ => panic!(),
+        };
+
+        valves_to_visit.sort_by_key(|name| {
+            (MAX_MINUTES as i64
+                - *valves
+                    .get(position)
+                    .unwrap()
+                    .destinations
+                    .get(name)
+                    .unwrap() as i64)
+                * valves.get(name).unwrap().rate as i64
+                * -1
+        });
+
+        let mut current_best_cave = None;
+
+        for valve_name_to_visit in valves_to_visit {
+            let mut new_cave = cave.clone();
+
+            let (position, action) = match new_cave.action {
+                (Action::Nothing, Action::Nothing) => {
+                    (&mut new_cave.position.0, &mut new_cave.action.0)
+                }
+                (Action::Go(..) | Action::Done, Action::Nothing) => {
+                    (&mut new_cave.position.1, &mut new_cave.action.1)
+                }
+                (Action::Nothing, Action::Go(..) | Action::Done) => {
+                    (&mut new_cave.position.0, &mut new_cave.action.0)
+                }
+                _ => panic!(),
+            };
+
+            let number_of_minutes_passing = valves
+                .get(position)
+                .unwrap()
+                .destinations
+                .get(&valve_name_to_visit)
+                .unwrap()
+                + 1;
+
+            if new_cave.minute + number_of_minutes_passing > MAX_MINUTES {
+                continue;
+            }
+
+            *action = Action::Go(number_of_minutes_passing, valve_name_to_visit.clone());
+
+            new_cave
+                .valves_names_to_visit
+                .remove(&valve_name_to_visit.clone());
+
+            let new_best_cave = best_cave(valves, new_cave, current_score);
+
+            if new_best_cave.presure > current_score {
+                current_score = new_best_cave.presure;
+                current_best_cave = Some(new_best_cave);
+            }
+        }
+
+        if let Some(current_best_cave) = current_best_cave {
+            current_best_cave
+        } else {
+            match cave.action {
+                (Action::Nothing, Action::Nothing) => cave.action.0 = Action::Done,
+                (Action::Go(..) | Action::Done, Action::Nothing) => cave.action.1 = Action::Done,
+                (Action::Nothing, Action::Go(..) | Action::Done) => cave.action.0 = Action::Done,
+                _ => panic!(),
+            }
+
+            let new_presure = cave.presure;
+            best_cave(valves, cave, max(current_score, new_presure))
+        }
+    }
 }
 
 #[test]
 fn test() {
     assert_eq!(
         1651,
-        part1(
+        part1::part1(
+            "
+            Valve AA has flow rate=0; tunnels lead to valves DD, II, BB
+            Valve BB has flow rate=13; tunnels lead to valves CC, AA
+            Valve CC has flow rate=2; tunnels lead to valves DD, BB
+            Valve DD has flow rate=20; tunnels lead to valves CC, AA, EE
+            Valve EE has flow rate=3; tunnels lead to valves FF, DD
+            Valve FF has flow rate=0; tunnels lead to valves EE, GG
+            Valve GG has flow rate=0; tunnels lead to valves FF, HH
+            Valve HH has flow rate=22; tunnel leads to valve GG
+            Valve II has flow rate=0; tunnels lead to valves AA, JJ
+            Valve JJ has flow rate=21; tunnel leads to valve II
+    
+    "
+        )
+    );
+    assert_eq!(
+        1707,
+        part2::part2(
             "
             Valve AA has flow rate=0; tunnels lead to valves DD, II, BB
             Valve BB has flow rate=13; tunnels lead to valves CC, AA
