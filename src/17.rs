@@ -1,12 +1,11 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 fn main() {
-    println!("Part 1 is {}", part1(input()));
+    println!("Part 1 is {}", compute(input(), 2022));
+    println!("Part 2 is {}", compute(input(), 1_000_000_000_000));
 }
 
-const STOP: usize = 2022;
-
-fn part1(input: &'static str) -> i32 {
+fn compute(input: &'static str, stop: usize) -> i64 {
     let all_shapes = vec![
         vec![(0, 0), (1, 0), (2, 0), (3, 0)],
         vec![(1, 2), (0, 1), (1, 1), (2, 1), (1, 0)],
@@ -15,7 +14,7 @@ fn part1(input: &'static str) -> i32 {
         vec![(0, 0), (1, 0), (0, 1), (1, 1)],
     ];
 
-    let mut shapes = all_shapes.iter().cycle();
+    let mut shapes = all_shapes.iter().enumerate().cycle();
 
     let jets = input
         .chars()
@@ -24,43 +23,76 @@ fn part1(input: &'static str) -> i32 {
             '<' => -1,
             _ => panic!(),
         })
+        .enumerate()
         .cycle();
 
     let mut map = HashSet::new();
     let mut shape = None;
     let mut max = -1;
     let mut blocks_blocked = 0;
-    for jet in jets {
-        let current_shape = shape.unwrap_or_else(|| {
-            let new_shape = shapes.next().unwrap().clone();
-            let (blocked, new_shape) = move_shape(&map, new_shape, (2, max + 4));
-            assert!(!blocked);
+    let mut already_done = HashMap::new();
 
-            print_map(
-                "New shape",
-                &map,
-                Some(new_shape.iter().cloned().collect()),
-                max,
+    let array_for_highest_lines: [i64; 40] = (0..40)
+        .collect::<Vec<_>>()
+        .try_into()
+        .expect("wrong size iterator");
+
+    for (jet_local_index, jet) in jets {
+        let current_shape = shape.unwrap_or_else(|| {
+            let (shape_index, new_shape) = shapes.next().unwrap();
+            let new_shape = new_shape.clone();
+
+            let highest_lines = array_for_highest_lines.map(|diff_y| {
+                [0, 1, 2, 3, 4, 5, 6].map(|x| map.contains(&(x, max - diff_y as i64)))
+            });
+
+            if let Some((previous_blocks_blocked, previous_max)) =
+                already_done.get(&(jet_local_index, shape_index, highest_lines))
+            {
+                let number_of_blocks_blocked_between_repetition =
+                    blocks_blocked - previous_blocks_blocked;
+                let elevation_between_repetition = max - previous_max;
+
+                let number_of_repetition_before_stop =
+                    (stop - blocks_blocked) / number_of_blocks_blocked_between_repetition;
+
+                let old_max = max;
+                blocks_blocked +=
+                    number_of_repetition_before_stop * number_of_blocks_blocked_between_repetition;
+                max += number_of_repetition_before_stop as i64 * elevation_between_repetition;
+
+                dbg!(max);
+
+                map = map.iter().map(|(x, y)| (*x, y + max - old_max)).collect();
+
+                // print_map("New shape", &map, None, max);
+            }
+
+            already_done.insert(
+                (jet_local_index, shape_index, highest_lines),
+                (blocks_blocked, max),
             );
 
+            let (blocked, new_shape) = move_shape(&map, new_shape, (2, max + 4));
+            assert!(!blocked);
             new_shape
         });
 
         let (_, current_shape) = move_shape(&map, current_shape, (jet, 0));
-        print_map(
-            &format!("Jet {jet}"),
-            &map,
-            Some(current_shape.iter().cloned().collect()),
-            max,
-        );
+        // print_map(
+        //     &format!("Jet {jet}"),
+        //     &map,
+        //     Some(current_shape.iter().cloned().collect()),
+        //     max,
+        // );
 
         let (blocked, current_shape) = move_shape(&map, current_shape, (0, -1));
-        print_map(
-            "Rock falls 1 unit:",
-            &map,
-            Some(current_shape.iter().cloned().collect()),
-            max,
-        );
+        // print_map(
+        //     "Rock falls 1 unit:",
+        //     &map,
+        //     Some(current_shape.iter().cloned().collect()),
+        //     max,
+        // );
 
         if blocked {
             for position in current_shape.into_iter() {
@@ -71,11 +103,11 @@ fn part1(input: &'static str) -> i32 {
                 map.insert(position);
             }
             blocks_blocked += 1;
-            if blocks_blocked == STOP {
+            if blocks_blocked == stop {
                 break;
             }
 
-            print_map("Blocked", &map, None, max);
+            // print_map("Blocked", &map, None, max);
 
             shape = None;
         } else {
@@ -86,50 +118,51 @@ fn part1(input: &'static str) -> i32 {
     max + 1
 }
 
+#[allow(dead_code)]
 fn print_map(
     context: &str,
-    map: &HashSet<(i32, i32)>,
-    shape: Option<HashSet<(i32, i32)>>,
-    max: i32,
+    map: &HashSet<(i64, i64)>,
+    shape: Option<HashSet<(i64, i64)>>,
+    max: i64,
 ) {
-    // println!();
-    // println!();
-    // println!("{context}");
-    // for y in (-1..=max + 5).rev() {
-    //     for x in -1..=7 {
-    //         if y == -1 {
-    //             print!("-");
-    //             continue;
-    //         }
+    println!();
+    println!();
+    println!("{context}");
+    for y in ((max - 50)..=max + 8).rev() {
+        for x in -1..=7 {
+            if y == -1 {
+                print!("-");
+                continue;
+            }
 
-    //         if x == -1 || x == 7 {
-    //             print!("|");
-    //             continue;
-    //         }
+            if x == -1 || x == 7 {
+                print!("|");
+                continue;
+            }
 
-    //         let has_shape = if let Some(shape) = &shape {
-    //             shape.contains(&(x, y))
-    //         } else {
-    //             false
-    //         };
+            let has_shape = if let Some(shape) = &shape {
+                shape.contains(&(x, y))
+            } else {
+                false
+            };
 
-    //         if has_shape {
-    //             print!("@");
-    //         } else if map.contains(&(x, y)) {
-    //             print!("#");
-    //         } else {
-    //             print!(".");
-    //         }
-    //     }
-    //     println!();
-    // }
+            if has_shape {
+                print!("@");
+            } else if map.contains(&(x, y)) {
+                print!("#");
+            } else {
+                print!(".");
+            }
+        }
+        println!();
+    }
 }
 
 fn move_shape(
-    map: &HashSet<(i32, i32)>,
-    shape: Vec<(i32, i32)>,
-    delta: (i32, i32),
-) -> (bool, Vec<(i32, i32)>) {
+    map: &HashSet<(i64, i64)>,
+    shape: Vec<(i64, i64)>,
+    delta: (i64, i64),
+) -> (bool, Vec<(i64, i64)>) {
     let new_shape: Vec<_> = shape
         .iter()
         .map(|(x, y)| (x + delta.0, y + delta.1))
@@ -147,7 +180,18 @@ fn move_shape(
 
 #[test]
 fn test() {
-    assert_eq!(3068, part1(">>><<><>><<<>><>>><<<>>><<<><<<>><>><<>>"));
+    assert_eq!(
+        3068,
+        compute(">>><<><>><<<>><>>><<<>>><<<><<<>><>><<>>", 2022)
+    );
+    assert_eq!(3168, compute(input(), 2022));
+    assert_eq!(
+        1_514_285_714_288,
+        compute(
+            ">>><<><>><<<>><>>><<<>>><<<><<<>><>><<>>",
+            1_000_000_000_000
+        )
+    );
 }
 
 fn input() -> &'static str {
