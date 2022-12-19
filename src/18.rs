@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 fn main() {
     println!("Part 1 is {}", part1(input()));
+    println!("Part 2 is {}", part2(input()));
 }
 
 fn part1(input: &'static str) -> u64 {
@@ -45,11 +46,104 @@ fn part1(input: &'static str) -> u64 {
         .sum()
 }
 
+fn part2(input: &'static str) -> u64 {
+    let droplet: HashSet<(i32, i32, i32)> = input
+        .trim()
+        .lines()
+        .map(|line| line.trim())
+        .map(|line| {
+            let mut coordinates = line
+                .split(',')
+                .map(|coordinate| coordinate.parse().unwrap());
+            (
+                coordinates.next().unwrap(),
+                coordinates.next().unwrap(),
+                coordinates.next().unwrap(),
+            )
+        })
+        .collect();
+
+    let mut visited: HashSet<(i32, i32, i32)> = HashSet::new();
+
+    let max_x = droplet.iter().map(|(x, _, _)| x).max().unwrap() + 5;
+    let max_y = droplet.iter().map(|(_, y, _)| y).max().unwrap() + 5;
+    let max_z = droplet.iter().map(|(_, _, z)| z).max().unwrap() + 5;
+
+    let mut sum = 0;
+    let mut positions = HashSet::from([(-1, -1, -1)]);
+
+    loop {
+        let (x, y, z) = match positions.iter().next() {
+            Some(position) => position.clone(),
+            None => break,
+        };
+        positions.remove(&(x, y, z));
+
+        let mut new_adjcents = Vec::with_capacity(6);
+        for diff_x in [-1, 1] {
+            new_adjcents.push((x + diff_x, y, z));
+        }
+        for diff_y in [-1, 1] {
+            new_adjcents.push((x, y + diff_y, z));
+        }
+        for diff_z in [-1, 1] {
+            new_adjcents.push((x, y, z + diff_z));
+        }
+
+        visited.insert((x, y, z));
+
+        for adjacent in new_adjcents {
+            if visited.contains(&adjacent) {
+                continue;
+            }
+
+            if adjacent.0 < -1
+                || adjacent.1 < -1
+                || adjacent.2 < -1
+                || adjacent.0 > max_x
+                || adjacent.1 > max_y
+                || adjacent.2 > max_z
+            {
+                continue;
+            }
+
+            if droplet.contains(&adjacent) {
+                sum += 1;
+                // visited.insert(adjacent);
+            } else {
+                positions.insert(adjacent);
+            }
+        }
+    }
+
+    sum
+}
+
 #[test]
 fn test() {
     assert_eq!(
         64,
         part1(
+            "
+    2,2,2
+    1,2,2
+    3,2,2
+    2,1,2
+    2,3,2
+    2,2,1
+    2,2,3
+    2,2,4
+    2,2,6
+    1,2,5
+    3,2,5
+    2,1,5
+    2,3,5
+    "
+        )
+    );
+    assert_eq!(
+        58,
+        part2(
             "
     2,2,2
     1,2,2
