@@ -1,16 +1,31 @@
+use std::{
+    cmp::max,
+    sync::{Arc, Mutex},
+    thread,
+};
+
 fn main() {
     println!("Part 1 is {}", part1(input()));
+    println!("Part 2 is {}", part2(input()));
 }
 
 #[derive(Debug)]
 struct Blueprint {
     id: usize,
+
     cost_ore_robot_in_ore: usize,
+
     cost_clay_robot_in_ore: usize,
+
     cost_obsidian_robot_in_ore: usize,
     cost_obsidian_robot_in_clay: usize,
+
     cost_geode_robot_in_ore: usize,
     cost_geode_robot_in_obsidian: usize,
+
+    max_ore_needed: usize,
+    max_clay_needed: usize,
+    max_obsidian_needed: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -31,50 +46,98 @@ struct State {
 fn part1(input: &'static str) -> usize {
     let mut sum = 0;
     for line in input.trim().lines().map(|line| line.trim()) {
-        let (id, tail) = line.split_once(": ").unwrap();
-        let id = id.strip_prefix("Blueprint ").unwrap().parse().unwrap();
+        let (blueprint_id, max) = max_geode(line, 24);
 
-        let words: Vec<_> = tail.split(' ').collect();
-
-        let blueprint = Blueprint {
-            id,
-            cost_ore_robot_in_ore: words[4].parse().unwrap(),
-            cost_clay_robot_in_ore: words[10].parse().unwrap(),
-            cost_obsidian_robot_in_ore: words[16].parse().unwrap(),
-            cost_obsidian_robot_in_clay: words[19].parse().unwrap(),
-            cost_geode_robot_in_ore: words[25].parse().unwrap(),
-            cost_geode_robot_in_obsidian: words[28].parse().unwrap(),
-        };
-
-        let state = State {
-            minute: 1,
-
-            ore_robots: 1,
-            clay_robots: 0,
-            obsidian_robots: 0,
-            geode_robots: 0,
-
-            ore: 0,
-            clay: 0,
-            obsidian: 0,
-            geode: 0,
-        };
-
-        let max = compute(&blueprint, state, 0);
-        println!("{} max is {}", blueprint.id, max);
-        sum += max * blueprint.id;
+        println!("{blueprint_id} max is {max}");
+        sum += max * blueprint_id;
     }
 
     sum
 }
 
-fn compute(blueprint: &Blueprint, mut state: State, mut max: usize) -> usize {
-    if state.minute == 25 {
+fn part2(input: &'static str) -> usize {
+    let mul = Arc::new(Mutex::new(1));
+    let mut handles = vec![];
+    for line in input.trim().lines().map(|line| line.trim()).take(3) {
+        let mul = Arc::clone(&mul);
+        let handle = thread::spawn(move || {
+            let (blueprint_id, max) = max_geode(line, 32);
+
+            println!("{blueprint_id} max is {max}");
+            let mut mul = mul.lock().unwrap();
+            *mul *= max;
+        });
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    let result = mul.lock().unwrap();
+    *result
+}
+
+fn max_geode(line: &str, max_minutes: usize) -> (usize, usize) {
+    let (id, tail) = line.split_once(": ").unwrap();
+    let id = id.strip_prefix("Blueprint ").unwrap().parse().unwrap();
+
+    let words: Vec<_> = tail.split(' ').collect();
+
+    let cost_ore_robot_in_ore = words[4].parse().unwrap();
+    let cost_clay_robot_in_ore = words[10].parse().unwrap();
+    let cost_obsidian_robot_in_ore = words[16].parse().unwrap();
+    let cost_obsidian_robot_in_clay = words[19].parse().unwrap();
+    let cost_geode_robot_in_ore = words[25].parse().unwrap();
+    let cost_geode_robot_in_obsidian = words[28].parse().unwrap();
+
+    let blueprint = Blueprint {
+        id,
+        cost_ore_robot_in_ore,
+
+        cost_clay_robot_in_ore,
+
+        cost_obsidian_robot_in_ore,
+        cost_obsidian_robot_in_clay,
+
+        cost_geode_robot_in_ore,
+        cost_geode_robot_in_obsidian,
+
+        max_ore_needed: max(
+            max(
+                max(cost_ore_robot_in_ore, cost_clay_robot_in_ore),
+                cost_obsidian_robot_in_ore,
+            ),
+            cost_geode_robot_in_ore,
+        ),
+        max_clay_needed: cost_obsidian_robot_in_clay,
+        max_obsidian_needed: cost_geode_robot_in_obsidian,
+    };
+
+    let state = State {
+        minute: 1,
+
+        ore_robots: 1,
+        clay_robots: 0,
+        obsidian_robots: 0,
+        geode_robots: 0,
+
+        ore: 0,
+        clay: 0,
+        obsidian: 0,
+        geode: 0,
+    };
+
+    (blueprint.id, compute(&blueprint, state, max_minutes, 0))
+}
+
+fn compute(blueprint: &Blueprint, mut state: State, max_minutes: usize, mut max: usize) -> usize {
+    if state.minute == (max_minutes + 1) {
         return state.geode;
     }
 
     let mut theory_state = state.clone();
-    for _ in state.minute..25 {
+    for _ in state.minute..(max_minutes + 1) {
         if theory_state.obsidian > blueprint.cost_geode_robot_in_obsidian {
             theory_state.geode_robots += 1;
         } else if theory_state.clay > blueprint.cost_obsidian_robot_in_clay {
@@ -97,11 +160,14 @@ fn compute(blueprint: &Blueprint, mut state: State, mut max: usize) -> usize {
         && state.ore >= blueprint.cost_geode_robot_in_ore;
 
     let can_create_obsidian_robot = state.clay >= blueprint.cost_obsidian_robot_in_clay
-        && state.ore >= blueprint.cost_obsidian_robot_in_ore;
+        && state.ore >= blueprint.cost_obsidian_robot_in_ore
+        && blueprint.max_obsidian_needed > state.obsidian_robots;
 
-    let can_create_clay_robot = state.ore >= blueprint.cost_clay_robot_in_ore;
+    let can_create_clay_robot = state.ore >= blueprint.cost_clay_robot_in_ore
+        && blueprint.max_clay_needed > state.clay_robots;
 
-    let can_create_ore_robot = state.ore >= blueprint.cost_ore_robot_in_ore;
+    let can_create_ore_robot =
+        state.ore >= blueprint.cost_ore_robot_in_ore && blueprint.max_ore_needed > state.ore_robots;
 
     state.minute += 1;
     state.ore += state.ore_robots;
@@ -115,7 +181,7 @@ fn compute(blueprint: &Blueprint, mut state: State, mut max: usize) -> usize {
         new_state.obsidian -= blueprint.cost_geode_robot_in_obsidian;
         new_state.ore -= blueprint.cost_geode_robot_in_ore;
 
-        let new_max = compute(blueprint, new_state, max);
+        let new_max = compute(blueprint, new_state, max_minutes, max);
         if new_max > max {
             // println!("{}: New max is {new_max}", blueprint.id);
             max = new_max;
@@ -128,7 +194,7 @@ fn compute(blueprint: &Blueprint, mut state: State, mut max: usize) -> usize {
         new_state.clay -= blueprint.cost_obsidian_robot_in_clay;
         new_state.ore -= blueprint.cost_obsidian_robot_in_ore;
 
-        let new_max = compute(blueprint, new_state, max);
+        let new_max = compute(blueprint, new_state, max_minutes, max);
         if new_max > max {
             // println!("{}: New max is {new_max}", blueprint.id);
             max = new_max;
@@ -140,7 +206,7 @@ fn compute(blueprint: &Blueprint, mut state: State, mut max: usize) -> usize {
         new_state.clay_robots += 1;
         new_state.ore -= blueprint.cost_clay_robot_in_ore;
 
-        let new_max = compute(blueprint, new_state, max);
+        let new_max = compute(blueprint, new_state, max_minutes, max);
         if new_max > max {
             // println!("{}: New max is {new_max}", blueprint.id);
             max = new_max;
@@ -149,7 +215,7 @@ fn compute(blueprint: &Blueprint, mut state: State, mut max: usize) -> usize {
 
     {
         let new_state = state.clone();
-        let new_max = compute(blueprint, new_state, max);
+        let new_max = compute(blueprint, new_state, max_minutes, max);
         if new_max > max {
             // println!("{}: New max is {new_max}", blueprint.id);
             max = new_max;
@@ -161,7 +227,7 @@ fn compute(blueprint: &Blueprint, mut state: State, mut max: usize) -> usize {
         new_state.ore_robots += 1;
         new_state.ore -= blueprint.cost_ore_robot_in_ore;
 
-        let new_max = compute(blueprint, new_state, max);
+        let new_max = compute(blueprint, new_state, max_minutes, max);
         if new_max > max {
             max = new_max;
         }
@@ -175,6 +241,15 @@ fn test() {
     assert_eq!(
         33,
         part1(
+            "
+                Blueprint 1: Each ore robot costs 4 ore. Each clay robot costs 2 ore. Each obsidian robot costs 3 ore and 14 clay. Each geode robot costs 2 ore and 7 obsidian.
+                Blueprint 2: Each ore robot costs 2 ore. Each clay robot costs 3 ore. Each obsidian robot costs 3 ore and 8 clay. Each geode robot costs 3 ore and 12 obsidian.
+    "
+        )
+    );
+    assert_eq!(
+        62 * 56,
+        part2(
             "
                 Blueprint 1: Each ore robot costs 4 ore. Each clay robot costs 2 ore. Each obsidian robot costs 3 ore and 14 clay. Each geode robot costs 2 ore and 7 obsidian.
                 Blueprint 2: Each ore robot costs 2 ore. Each clay robot costs 3 ore. Each obsidian robot costs 3 ore and 8 clay. Each geode robot costs 3 ore and 12 obsidian.
