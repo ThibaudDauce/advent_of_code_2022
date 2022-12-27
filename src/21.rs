@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 fn main() {
     println!("Part 1 is {}", part1(input()));
+    println!("Part 2 is {}", part2(input()));
 }
 
 #[derive(Debug)]
@@ -97,6 +98,139 @@ fn part1(input: &'static str) -> i64 {
     *numbers.get("root").unwrap()
 }
 
+fn part2(input: &'static str) -> i64 {
+    let mut numbers: HashMap<&str, i64> = HashMap::new();
+    let mut dependencies_by_monkey: HashMap<&str, Vec<&str>> = HashMap::new();
+    let mut operations_by_monkey: HashMap<&str, (&str, Operation, &str)> = HashMap::new();
+
+    for line in input.trim().lines().map(|line| line.trim()) {
+        let (name, tail) = line.split_once(": ").unwrap();
+
+        if let Ok(digit) = tail.parse::<i64>() {
+            numbers.insert(name, digit);
+        } else {
+            let mut parts = tail.split(' ');
+            let a = parts.next().unwrap();
+            let operation = parts.next().unwrap();
+            let b = parts.next().unwrap();
+
+            operations_by_monkey.insert(
+                name,
+                (
+                    a,
+                    match operation {
+                        "+" => Operation::Add,
+                        "-" => Operation::Sub,
+                        "/" => Operation::Div,
+                        "*" => Operation::Mul,
+                        _ => panic!(),
+                    },
+                    b,
+                ),
+            );
+
+            dependencies_by_monkey
+                .entry(a)
+                .or_insert_with(Vec::new)
+                .push(name);
+
+            dependencies_by_monkey
+                .entry(b)
+                .or_insert_with(Vec::new)
+                .push(name);
+        }
+    }
+
+    let mut new_names: Vec<&str> = numbers.keys().copied().collect();
+
+    numbers.remove("humn");
+
+    let empty_vec = vec![];
+    loop {
+        let mut new_new_names = vec![];
+
+        for new_name in &new_names {
+            let dependencies = dependencies_by_monkey.get(new_name).unwrap_or(&empty_vec);
+
+            for name in dependencies {
+                if numbers.contains_key(*name) {
+                    continue;
+                }
+
+                let (a, operation, b) = operations_by_monkey.get(*name).unwrap();
+
+                if let Some(digit_a) = numbers.get(a) {
+                    if let Some(digit_b) = numbers.get(b) {
+                        let result = match operation {
+                            Operation::Add => digit_a + digit_b,
+                            Operation::Sub => digit_a - digit_b,
+                            Operation::Mul => digit_a * digit_b,
+                            Operation::Div => digit_a / digit_b,
+                        };
+
+                        numbers.insert(*name, result);
+                        new_new_names.push(*name);
+                    }
+                }
+            }
+        }
+
+        new_names = new_new_names;
+
+        if new_names.is_empty() {
+            break;
+        }
+    }
+
+    let mut missing = "root";
+    let mut should_be = 0;
+
+    loop {
+        if missing == "humn" {
+            break;
+        }
+
+        let (a, operation, b) = operations_by_monkey.get(missing).unwrap();
+
+        if let Some(digit_a) = numbers.get(a) {
+            assert!(!numbers.contains_key(b));
+
+            if missing == "root" {
+                should_be = *digit_a;
+            } else {
+                should_be = match operation {
+                    Operation::Add => should_be - digit_a,
+                    Operation::Sub => (should_be - digit_a) * -1,
+                    Operation::Mul => should_be / digit_a,
+                    Operation::Div => digit_a / should_be,
+                };
+            }
+
+            missing = b;
+            continue;
+        }
+
+        if let Some(digit_b) = numbers.get(b) {
+            assert!(!numbers.contains_key(a));
+
+            if missing == "root" {
+                should_be = *digit_b;
+            } else {
+                should_be = match operation {
+                    Operation::Add => should_be - digit_b,
+                    Operation::Sub => should_be + digit_b,
+                    Operation::Mul => should_be / digit_b,
+                    Operation::Div => should_be * digit_b,
+                };
+            }
+            missing = a;
+            continue;
+        }
+    }
+
+    should_be
+}
+
 #[test]
 fn test() {
     assert_eq!(
@@ -120,7 +254,29 @@ fn test() {
     hmdt: 32
     "
         )
-    )
+    );
+    assert_eq!(
+        301,
+        part2(
+            "
+    root: pppw + sjmn
+    dbpl: 5
+    cczh: sllz + lgvd
+    zczc: 2
+    ptdq: humn - dvpt
+    dvpt: 3
+    lfqf: 4
+    humn: 5
+    ljgn: 2
+    sjmn: drzm * dbpl
+    sllz: 4
+    pppw: cczh / lfqf
+    lgvd: ljgn * ptdq
+    drzm: hmdt - zczc
+    hmdt: 32
+    "
+        )
+    );
 }
 
 fn input() -> &'static str {
