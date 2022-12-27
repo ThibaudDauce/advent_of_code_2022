@@ -1,5 +1,6 @@
 fn main() {
     println!("Part 1 is {}", part1(input()));
+    println!("Part 2 is {}", part2(input()));
 }
 
 fn part1(input: &'static str) -> i64 {
@@ -12,6 +13,28 @@ fn part1(input: &'static str) -> i64 {
 
     for original_index in 0..digits.len() {
         move_value(&mut digits, original_index);
+    }
+
+    let zero_index = digits.iter().position(|(_, value)| *value == 0).unwrap();
+
+    let value_1 = digits[(zero_index + 1000) % digits.len()].1;
+    let value_2 = digits[(zero_index + 2000) % digits.len()].1;
+    let value_3 = digits[(zero_index + 3000) % digits.len()].1;
+    value_1 + value_2 + value_3
+}
+
+fn part2(input: &'static str) -> i64 {
+    let mut digits: Vec<(usize, i64)> = input
+        .trim()
+        .lines()
+        .enumerate()
+        .map(|(index, line)| (index, line.trim().parse::<i64>().unwrap() * 811_589_153))
+        .collect();
+
+    for _ in 0..10 {
+        for original_index in 0..digits.len() {
+            move_value(&mut digits, original_index);
+        }
     }
 
     let zero_index = digits.iter().position(|(_, value)| *value == 0).unwrap();
@@ -45,36 +68,13 @@ fn move_value(digits: &mut Vec<(usize, i64)>, original_index: usize) {
 }
 
 fn compute_new_index(original_index: usize, value: i64, length: usize) -> usize {
-    let mut new_index = original_index as i64;
-
-    if value > 0 {
-        for _ in 0..value {
-            new_index += 1;
-            if new_index == length as i64 - 1 {
-                new_index = 0;
-            }
-        }
+    let mut new_index = (original_index as i64 + value) % (length as i64 - 1);
+    if new_index < 0 {
+        new_index = length as i64 + new_index - 1;
     }
-
-    if value < 0 {
-        for _ in 0..value * -1 {
-            if new_index == 0 {
-                new_index = length as i64 - 1;
-            }
-            new_index -= 1;
-            if new_index == 0 {
-                new_index = length as i64 - 1;
-            }
-        }
+    if new_index == 0 {
+        new_index = length as i64 - 1;
     }
-
-    // let mut new_index = (original_index as i64 + value) % length as i64;
-    // if new_index < 0 {
-    //     new_index = length as i64 + new_index - 1;
-    // }
-    // if new_index == 0 {
-    //     new_index = length as i64 - 1;
-    // }
 
     new_index as usize
 }
@@ -98,7 +98,24 @@ fn test() {
     4
     "
         )
-    )
+    );
+
+    assert_eq!(10763, part1(input()));
+
+    assert_eq!(
+        1623178306,
+        part2(
+            "
+    1
+    2
+    -3
+    3
+    -2
+    0
+    4
+    "
+        )
+    );
 }
 
 fn input() -> &'static str {
